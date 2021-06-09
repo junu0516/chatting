@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html class="loading">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>main view</title>
+<style>
+	.hidden{
+		display:none;
+	}
+
+</style>
+</head>  
+<body>
+<h1>Chatting Demo</h1>
+
+<div id="user-page">
+	<div class="user-page-container">
+		<h1 class="title">이름 입력하기</h1>
+		<form id="userForm" name="userForm">
+			<div class="form-group">
+				<input type="text" id="user" placeholder="user" autocomplete="off" class="form-control" />
+			</div>
+			<div class="form-group">
+				<button type="submit" class="accent user-submit">채팅 시작하기</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<div id="chat-page" class="hidden">
+	<div class="chat-container">
+		<div class="chat-header">
+			<h2>Spring WebSocket Chat Demo</h2>
+		</div>
+		<div class="connecting">
+			연결중...
+		</div>
+		<ul id="messageArea">
+
+		</ul>
+		<form id="messageForm" name="messageForm">
+			<div class="form-group">
+				<div class="input-group clearfix">
+					<input type="text" id="message" placeholder="Type a message..." autocomplete="off" class="form-control"/>
+					<button type="submit" class="primary">보내기</button>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.4.0/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script>
+
+let user = document.getElementById('user').value.trim();
+let userPage = document.getElementById('user-page');
+let chatPage = document.getElementById('chat-page');
+let userForm = document.getElementById('userForm');
+let messageForm = document.getElementById('messageForm');
+let messageInput = document.getElementById('message');
+let messageArea = document.getElementById('messageArea');
+let connectingElement = document.getElementsByClassName('.connecting')[0];
+
+let stompClient;
+
+function connect(event){
+	console.log("event started");
+
+	user = document.getElementById('user').value.trim();
+	console.log("input user : "+user);
+	if(user.length>0 && user != null){
+		userPage.classList.add('hidden');
+		chatPage.classList.remove('hidden');
+
+		let socket = new SockJS('/ws');
+		stompClient = Stomp.over(socket);
+		console.log(socket);
+		stompClient.connect({},onConnected,onError);
+	}
+	event.preventDefault();
+}
+
+function onConnected(){
+	console.log('Start trying Connection');
+	stompClient.subscribe('/topic/public',onMessageReceived);
+	stompClient.send("/app/entrance",{},JSON.stringify({sender:user, type:'JOIN'}));
+	connectingElement.classList.add('hidden');
+	console.log('Connection Finished');
+}
+
+function onError(error){
+	connectingElement.textContent = '웹소켓에 연결할 수 없습니다.';
+	connectingElement.style.color = 'red';
+}
+
+function sendMessage(event){
+	let messageContent = messageInput.value;
+	if(messageContent.length>0 && messageContent != null){
+		let chatMessage = {
+			sender : user,
+			content : messageInput.value,
+			type: 'CHAT'
+		};
+		console.log("sendMessage : ");
+		console.log(chatMessage);
+		stompClient.send('/app/sent',{},JSON.stringify(chatMessage));
+		messageInput.value = '';
+	}
+	event.preventDefault();
+}
+
+function onMessageReceived(payload){
+	let message = JSON.parse(payload.body);
+	let messageElement = document.createElement('li');
+	console.log(message);
+
+	messageElement.classList.add('chat-message');
+	if(message.type == 'JOIN'){
+		message.content = message.sender + '입장';
+	}else if(message.type == 'LEAVE'){
+		message.content = message.sender + '퇴장';
+	}else{
+		let additionalElement = document.createElement('i');
+		let additionalText = document.createTextNode(message.sender);
+		additionalElement.appendChild(additionalText);
+
+		let userElement = document.createElement('span');
+		let userText = document.createTextNode(message.sender);
+		userElement.appendChild(additionalElement);
+		messageElement.appendChild(userElement);
+	}
+
+	let textElement = document.createElement('p');
+	let messageText = document.createTextNode(message.content);
+	textElement.appendChild(messageText);
+
+	messageElement.appendChild(textElement);
+	messageArea.appendChild(messageElement);
+	messageArea.scrollTop = messageArea.scrollHeight;
+}
+
+userForm.addEventListener('submit',connect,true);
+messageForm.addEventListener('submit',sendMessage,true);
+
+</script>
+</body>
+</html>
