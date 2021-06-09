@@ -59,7 +59,7 @@ let userForm = document.getElementById('userForm');
 let messageForm = document.getElementById('messageForm');
 let messageInput = document.getElementById('message');
 let messageArea = document.getElementById('messageArea');
-let connectingElement = document.getElementsByClassName('.connecting')[0];
+let connectingElement = document.getElementsByClassName('connecting');
 
 let stompClient;
 
@@ -72,6 +72,7 @@ function connect(event){
 		userPage.classList.add('hidden');
 		chatPage.classList.remove('hidden');
 
+		//소켓연결 생성
 		let socket = new SockJS('/ws');
 		stompClient = Stomp.over(socket);
 		console.log(socket);
@@ -82,10 +83,12 @@ function connect(event){
 
 function onConnected(){
 	console.log('Start trying Connection');
+	//토픽 구독
 	stompClient.subscribe('/topic/public',onMessageReceived);
+	//서버단의 addUser 메소드로 메시지 매핑
 	stompClient.send("/app/entrance",{},JSON.stringify({sender:user, type:'JOIN'}));
 	connectingElement.classList.add('hidden');
-	console.log('Connection Finished');
+	console.log('Connection Completed');
 }
 
 function onError(error){
@@ -96,6 +99,8 @@ function onError(error){
 function sendMessage(event){
 	let messageContent = messageInput.value;
 	if(messageContent.length>0 && messageContent != null){
+
+		//메시지 json 생성 후 전송
 		let chatMessage = {
 			sender : user,
 			content : messageInput.value,
@@ -116,9 +121,9 @@ function onMessageReceived(payload){
 
 	messageElement.classList.add('chat-message');
 	if(message.type == 'JOIN'){
-		message.content = message.sender + '입장';
+		message.content = message.sender + ' 입장';
 	}else if(message.type == 'LEAVE'){
-		message.content = message.sender + '퇴장';
+		message.content = message.sender + ' 퇴장';
 	}else{
 		let additionalElement = document.createElement('i');
 		let additionalText = document.createTextNode(message.sender);
